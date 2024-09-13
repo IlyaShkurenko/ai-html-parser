@@ -3,6 +3,7 @@ import { z } from "zod";
 import { zodResponseFormat } from "openai/helpers/zod";
 import makeBrowserScreenshot from './utils/makeBrowserScreenshot';
 import dotenv from 'dotenv';
+import { buildIdentifyCollapsedElementsPrompt } from './prompts';
 
 dotenv.config();
 
@@ -383,71 +384,92 @@ const images2 = ['https://testbucketzizo.s3.amazonaws.com/cosmetologmoscow.ru_pr
 //   }, 'Консультации');
 // });
 
-await makeBrowserScreenshot('https://cidk.ru/czeny/', async (page) => {
-  await page.evaluate((element) => {
-    function expandElement(el: { label: string; children: any[] }) {
-      const collapseElements = [...document.querySelectorAll('*')]
-        .filter(domEl => {
-          const hasHref = (domEl as HTMLElement).hasAttribute('href');
-          const hrefValue = (domEl as HTMLElement).getAttribute('href');
-          const matchesText = domEl.textContent?.trim().toLowerCase() === el.label.toLowerCase();
-          return matchesText && (!hasHref || (hasHref && hrefValue === ''));
-        });
+// await makeBrowserScreenshot('https://cidk.ru/czeny/', async (page) => {
+//   await page.evaluate((element) => {
+//     function expandElement(el: { label: string; children: any[] }) {
+//       const collapseElements = [...document.querySelectorAll('*')]
+//         .filter(domEl => {
+//           const hasHref = (domEl as HTMLElement).hasAttribute('href');
+//           const hrefValue = (domEl as HTMLElement).getAttribute('href');
+//           const matchesText = domEl.textContent?.trim().toLowerCase() === el.label.toLowerCase();
+//           return matchesText && (!hasHref || (hasHref && hrefValue === ''));
+//         });
 
-      collapseElements.forEach(domEl => {
-        (domEl as HTMLElement).click();
-        console.log(`Clicked element: ${el.label}`);
-      });
+//       collapseElements.forEach(domEl => {
+//         (domEl as HTMLElement).click();
+//         console.log(`Clicked element: ${el.label}`);
+//       });
 
-      // Рекурсивно обрабатываем дочерние элементы
-      el.children.forEach(child => expandElement(child));
-    }
+//       // Рекурсивно обрабатываем дочерние элементы
+//       el.children.forEach(child => expandElement(child));
+//     }
 
-    function addElementObserver(el: Element) {
-      const observer = new MutationObserver(() => {
-        if (isElementVisible(el)) {
-          console.log('Hidden element became visible:', el);
-        } else {
-          console.log('Visible element became hidden:', el);
-          (el as HTMLElement).style.display = 'block';
-          (el as HTMLElement).style.visibility = 'visible';
-          (el as HTMLElement).style.opacity = '1';
-        }
-      });
+//     function addElementObserver(el: Element) {
+//       const observer = new MutationObserver(() => {
+//         if (isElementVisible(el)) {
+//           console.log('Hidden element became visible:', el);
+//         } else {
+//           console.log('Visible element became hidden:', el);
+//           (el as HTMLElement).style.display = 'block';
+//           (el as HTMLElement).style.visibility = 'visible';
+//           (el as HTMLElement).style.opacity = '1';
+//         }
+//       });
     
-      observer.observe(el as HTMLElement, {
-        attributes: true,
-        attributeOldValue: true,
-        attributeFilter: ['style', 'class']
-      });
+//       observer.observe(el as HTMLElement, {
+//         attributes: true,
+//         attributeOldValue: true,
+//         attributeFilter: ['style', 'class']
+//       });
     
-      return observer;
-    }
+//       return observer;
+//     }
 
-    function isElementVisible(el: Element): boolean {
-      const style = window.getComputedStyle(el as HTMLElement);
-      return style.display !== 'none' && 
-             style.visibility !== 'hidden' && 
-             style.opacity !== '0';
-    }
+//     function isElementVisible(el: Element): boolean {
+//       const style = window.getComputedStyle(el as HTMLElement);
+//       return style.display !== 'none' && 
+//              style.visibility !== 'hidden' && 
+//              style.opacity !== '0';
+//     }
 
-    // Добавляем наблюдатели для всех элементов
-    [...document.querySelectorAll('*')].forEach(el => {
-      if (!isElementVisible(el)) {
-        (el as any)._observer = addElementObserver(el);
-      }
-    });
+//     // Добавляем наблюдатели для всех элементов
+//     [...document.querySelectorAll('*')].forEach(el => {
+//       if (!isElementVisible(el)) {
+//         (el as any)._observer = addElementObserver(el);
+//       }
+//     });
 
-    // Начинаем раскрытие с корневого элемента
-    expandElement(element);
-  }, {
-    label: 'Консультации',
+//     // Начинаем раскрытие с корневого элемента
+//     expandElement(element);
+//   }, {
+//     label: 'Консультации',
+//     children: [{
+//       label: 'Консультации',
+//       children: [{
+//         label: 'Онлайн консультации',
+//         children: []
+//       }]
+//     }]
+//   });
+// });
+
+console.log(buildIdentifyCollapsedElementsPrompt(
+  'Центр инновационных диагностических технологий',
+  [{
+    label: 'Процедурный кабинет',
     children: [{
-      label: 'Консультации',
+      label: 'Анализы и диагностика',
       children: [{
-        label: 'Онлайн консультации',
+        label: 'Биохимический анализ крови',
         children: []
       }]
     }]
-  });
-});
+  },
+  {
+    label: 'Терапия',
+    children: [{
+      label: 'Консультации и диагностика',
+      children: []
+    }]
+  }
+]));

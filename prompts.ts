@@ -1,3 +1,8 @@
+type CollapsedElement = {
+  label: string;
+  children: CollapsedElement[];
+};
+
 const generateWebsiteDescriptionPrompt = `You are an AI model tasked with generating a brief description of a website based on its screenshot. Your task is to:
 
 1. **Analyze the Screenshot**: Carefully examine the screenshot of website pricing page to understand the primary focus of what it's selling.
@@ -69,29 +74,41 @@ ${websiteDescription}
 Do not invent or assume any information not present in the screenshot.`
 }
 
-const buildIdentifyCollapsedElementsPrompt = (websiteDescription: string, previousCollapsedElements?: string) => {
+const buildIdentifyCollapsedElementsPrompt = (websiteDescription: string, previousCollapsedElements: CollapsedElement[], currentCollapsedBranch?: CollapsedElement) => {
   return `You are an AI model tasked with identifying one collapsed element from a website screenshot. Your task is as follows:
 
 1. **Scan the Screenshot**: Analyze the screenshot for any collapsed element that requires interaction (such as clicking) to reveal additional content. These elements are typically related to categories of services or products. Do not consider sidebars, navigation blocks, or footers.
-2. **Prioritize Sub-Categories**: If a collapsed element is already expanded but contains sub-categories that are still collapsed, return the whole tree with the first collapsed sub-category you find. This should be done regardless of how deep the nesting goes.
-3. **Return the Tree**: Identify and return the tree of collapsed elements, exactly as it appears on the screenshot.
-4. **Prices are visible**: If prices are visible on the screenshot, return the message: "Prices are visible. No collapsed elements detected."
+2. **Focus on Sub-Categories**: If a collapsed element is already expanded but contains sub-categories that are still collapsed, return the whole tree with the first collapsed sub-category you find. This should be done regardless of how deep the nesting goes.
+3. **Return the Tree**: Identify and return the tree of collapsed elements, exactly as it appears on the screenshot including category it's sub-categories with only one children on each level.
+4. **Check Current Collapsed Branch**: If <current_collapsed_branch> is provided, examine the screenshot to see if this element is expanded. If it is expanded and no prices are visible, consider any tables, lists, or rows within it as potential collapsed elements. Return the first collapsed sub-category found within this branch, regardless of depth.
 
 <website_description>
 ${websiteDescription}
 </website_description>
 
-${previousCollapsedElements ? `Before detected collapsed elements: ${previousCollapsedElements}`: ''}
+${previousCollapsedElements.length > 0 ? `<already_detected_collapsed_elements>\n${previousCollapsedElements.map(element => getCollapsedElementPath(element)).join('\n')}\n</already_detected_collapsed_elements>` : ''}
 
 ### Note:
 It is crucial that you do not invent or add any text that is not present on the screenshot. The label of the collapsed element must be an exact match to what is on the page, with no modifications. Do not include counters or numbers in the label unless they are explicitly present in the screenshot.
 
 ### EXAMPLE OUTPUT:
+<screenshot_structure>
+- Процедурный кабинет
+</screenshot_structure>
 { 
   label: 'Процедурный кабинет',
   children: []
 }
+
 ### EXAMPLE OUTPUT WITH SUB-CATEGORIES:
+<screenshot_structure>
+→ Процедурный кабинет
+  → Анализы и диагностика
+    → Биохимический анализ крови
+</screenshot_structure>
+<current_collapsed_branch>
+Процедурный кабинет -> Анализы и диагностика
+</current_collapsed_branch>
 { 
   label: 'Процедурный кабинет',
   children: [{
@@ -101,9 +118,21 @@ It is crucial that you do not invent or add any text that is not present on the 
       children: []
     }]
   }]
-}`
 }
 
+${currentCollapsedBranch ? `<current_collapsed_branch>\n${getCollapsedElementPath(currentCollapsedBranch)}\n</current_collapsed_branch>` : ''}
+`
+}
+
+function getCollapsedElementPath(element: CollapsedElement): string {
+  let path = element.label;
+  let current = element;
+  while (current.children.length > 0) {
+    current = current.children[0];
+    path += ` -> ${current.label}`;
+  }
+  return `${path}.`;
+}
 
 
 export { generateWebsiteDescriptionPrompt, findPricesPrompt, identifyCollapsedElementsPrompt, reactAgentPrompt, buildFindPricesPrompt, buildIdentifyCollapsedElementsPrompt };

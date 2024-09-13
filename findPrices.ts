@@ -1,7 +1,7 @@
 import OpenAI from 'openai';
 import { z } from 'zod';
 import { zodResponseFormat } from 'openai/helpers/zod';
-import makeBrowserScreenshot from './utils/makeBrowserScreenshot';
+import makeBrowserScreenshot, { BrowserScreenshotMaker } from './utils/makeBrowserScreenshot';
 import { buildFindPricesPrompt, buildIdentifyCollapsedElementsPrompt, generateWebsiteDescriptionPrompt, reactAgentPrompt } from './prompts';
 
 type CollapsedElement = {
@@ -15,10 +15,13 @@ export class PriceFinder {
   private websiteDescription: string | null = null;
   private url: string;
   private collapsedElements: CollapsedElement[] = [];
+  private currentCollapsedBranch: CollapsedElement;
+  private browserScreenshotMaker: BrowserScreenshotMaker;
 
   constructor(apiKey: string, url: string) {
     this.openai = new OpenAI({ apiKey });
     this.url = url;
+    this.browserScreenshotMaker = new BrowserScreenshotMaker();
   }
 
   private ReasoningSchema = z.object({
@@ -86,10 +89,14 @@ export class PriceFinder {
   }
 
   private async findCollapsedElements() {
+    const prompt = buildIdentifyCollapsedElementsPrompt(this.websiteDescription as string, this.collapsedElements, this.currentCollapsedBranch);
+    console.log(this.currentCollapsedBranch)
+    console.log(prompt);
+    console.log(this.screenshot)
     const response = await this.openai.beta.chat.completions.parse({
       model: "gpt-4o-2024-08-06",
       messages: [
-        { role: "system", content: buildIdentifyCollapsedElementsPrompt(this.websiteDescription as string, this.collapsedElements.length && JSON.stringify(this.collapsedElements, null, 2)) },
+        { role: "system", content: prompt },
         {
           role: "user",
           content: [
@@ -109,7 +116,7 @@ export class PriceFinder {
     const newElement = response.choices[0].message.parsed;
     
     const existingIndex = this.collapsedElements.findIndex(el => el.label === newElement.label);
-    
+    this.currentCollapsedBranch = newElement as CollapsedElement;
     if (existingIndex !== -1) {
       this.collapsedElements[existingIndex] = newElement as CollapsedElement;
     } else {
@@ -148,7 +155,7 @@ export class PriceFinder {
       elementToCollapse = elementToCollapseStr;
     }
     console.log(elementToCollapse.label);
-    this.screenshot = await makeBrowserScreenshot(this.url, async (page) => {
+    this.screenshot = await this.browserScreenshotMaker.makeScreenshot(this.url, async (page) => {
       await page.evaluate((element) => {
         console.log('label', element.label);
         function expandElement(el: { label: string; children: any[] }) {
@@ -239,7 +246,7 @@ export class PriceFinder {
   }
 
   public async main() {
-    this.screenshot = await makeBrowserScreenshot(this.url);
+    this.screenshot = await this.browserScreenshotMaker.makeScreenshot(this.url);
     this.websiteDescription = await this.generateWebsiteDescription();
     let continueLoop = true;
     let result;
