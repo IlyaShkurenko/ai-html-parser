@@ -94,7 +94,7 @@ ${previousCollapsedElements.length > 0 ? `<already_detected_collapsed_elements>\
   parent: 'Процедурный кабинет | null'
 }
 
-${currentCollapsedBranch ? `Focus on current collapsed branch. If it is expanded and no prices are visible, consider any tables, lists, or rows within it as potential collapsed elements. Return the first collapsed sub-category found within this branch:\n<current_collapsed_branch>${getCollapsedElementPath(currentCollapsedBranch)}\n</current_collapsed_branch>` : ''}
+${currentCollapsedBranch ? `Focus on current collapsed branch. If it is expanded and no prices are visible, consider any tables, lists, or rows within it as potential collapsed elements. Return the first collapsed sub-category found within this branch without any text modifications:\n<current_collapsed_branch>\n${getCollapsedElementPath(currentCollapsedBranch)}\n</current_collapsed_branch>` : ''}
 
 ### Note:
 It is crucial that you do not invent or add any text that is not present on the screenshot. The label of the collapsed element must be an exact match to what is on the page, with no modifications. Do not include counters or numbers in the label unless they are explicitly present in the screenshot.

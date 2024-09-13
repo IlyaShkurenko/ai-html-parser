@@ -1,11 +1,12 @@
 import OpenAI from 'openai';
 import { z } from 'zod';
 import { zodResponseFormat } from 'openai/helpers/zod';
-import makeBrowserScreenshot, { BrowserScreenshotMaker } from './utils/makeBrowserScreenshot';
+import { BrowserScreenshotMaker } from './utils/makeBrowserScreenshot';
 import { buildFindPricesPrompt, buildIdentifyCollapsedElementsPrompt, generateWebsiteDescriptionPrompt, reactAgentPrompt } from './prompts';
 
 type CollapsedElement = {
   label: string;
+  parent: string | null;
   children: CollapsedElement[];
 };
 
@@ -93,7 +94,6 @@ export class PriceFinder {
     const prompt = buildIdentifyCollapsedElementsPrompt(this.websiteDescription as string, this.collapsedElements, this.currentCollapsedBranch);
     console.log(this.currentCollapsedBranch)
     console.log(prompt);
-    console.log(this.screenshot)
     const response = await this.openai.beta.chat.completions.parse({
       model: "gpt-4o-2024-08-06",
       messages: [
@@ -114,34 +114,19 @@ export class PriceFinder {
       response_format: zodResponseFormat(this.CollapsedElementsSchema, "collapsed_elements"),
     });
 
-    const newElement = response.choices[0].message.parsed;
+    const newElement = response.choices[0].message.parsed as CollapsedElement;
     
-    const existingIndex = this.collapsedElements.findIndex(el => el.label === newElement.label);
-    this.currentCollapsedBranch = newElement as CollapsedElement;
-    if (existingIndex !== -1) {
-      this.collapsedElements[existingIndex] = newElement as CollapsedElement;
-    } else {
-      this.collapsedElements.push(newElement as CollapsedElement);
+    const existingParent = this.collapsedElements.find(el => el.label === newElement.parent);
+    if(existingParent){
+      existingParent.children = [newElement];
+      this.currentCollapsedBranch = existingParent;
+    } else{
+      this.currentCollapsedBranch = newElement;
+      this.collapsedElements.push(newElement);
     }
-
-    return JSON.stringify(newElement, null, 2);
+   
+    return existingParent ? JSON.stringify(existingParent, null, 2) : JSON.stringify(newElement, null, 2);
   }
-
-  // private async expandCollapsedElements(labels: string[]) {
-  //   this.screenshot = await makeBrowserScreenshot(this.url, async (page) => {
-  //     await page.evaluate((name) => {
-  //       const collapseElements = [...document.querySelectorAll('*')]
-  //         .filter(el => {
-  //           return el.textContent?.trim().toLowerCase() === name.toLowerCase();
-  //         });
-      
-  //     collapseElements.forEach(element => {
-  //         (element as HTMLElement).click();
-  //       });
-  //     }, labels[0]);
-  //   });
-  //   return this.screenshot;
-  // }
 
   private async expandCollapsedElements(elementToCollapseStr: string) {
     let elementToCollapse: CollapsedElement;
@@ -150,7 +135,7 @@ export class PriceFinder {
         elementToCollapse = JSON.parse(elementToCollapseStr);
       } catch (error) {
         console.error('Failed to parse elementToCollapseStr:', error);
-        elementToCollapse = { label: elementToCollapseStr, children: [] };
+        elementToCollapse = { label: elementToCollapseStr, children: [], parent: '' };
       }
     } else {
       elementToCollapse = elementToCollapseStr;

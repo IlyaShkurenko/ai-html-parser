@@ -453,23 +453,232 @@ const images2 = ['https://testbucketzizo.s3.amazonaws.com/cosmetologmoscow.ru_pr
 //   });
 // });
 
-console.log(buildIdentifyCollapsedElementsPrompt(
-  'Центр инновационных диагностических технологий',
-  [{
-    label: 'Процедурный кабинет',
-    children: [{
-      label: 'Анализы и диагностика',
-      children: [{
-        label: 'Биохимический анализ крови',
-        children: []
-      }]
-    }]
-  },
-  {
-    label: 'Терапия',
-    children: [{
-      label: 'Консультации и диагностика',
-      children: []
-    }]
+// console.log(buildIdentifyCollapsedElementsPrompt(
+//   'Центр инновационных диагностических технологий',
+//   [{
+//     label: 'Процедурный кабинет',
+//     children: [{
+//       label: 'Анализы и диагностика',
+//       children: [{
+//         label: 'Биохимический анализ крови',
+//         children: []
+//       }]
+//     }]
+//   },
+//   {
+//     label: 'Терапия',
+//     children: [{
+//       label: 'Консультации и диагностика',
+//       children: []
+//     }]
+//   }
+// ]));
+
+// type CollapsedElement = {
+//   label: string;
+//   parent: string | null;
+//   child: CollapsedElement | null;
+// };
+
+// function findAndBuildPath(tree: CollapsedElement[], newElement: CollapsedElement): CollapsedElement | null {
+//   function traverse(node: CollapsedElement, path: CollapsedElement[]): CollapsedElement | null {
+//     // Добавляем текущий узел в цепочку
+//     path.push({ ...node, child: null });
+
+//     // Если нашли нужного родителя
+//     if (node.label === newElement.parent) {
+//       return path.reduceRight<CollapsedElement | null>((acc, curr) => {
+//         if (acc) {
+//           curr.child = acc;
+//         }
+//         return curr;
+//       }, newElement);
+//     }
+
+//     // Если у узла есть ребенок, продолжаем искать в глубину
+//     if (node.child) {
+//       const result = traverse(node.child, path);
+//       if (result) {
+//         return result;
+//       }
+//     }
+
+//     // Если узел не подошел, убираем его из цепочки и возвращаемся наверх
+//     path.pop();
+//     return null;
+//   }
+
+//   for (const rootNode of tree) {
+//     const path: CollapsedElement[] = [];
+//     const result = traverse(rootNode, path);
+//     if (result) {
+//       return result;
+//     }
+//   }
+
+//   return null; // Возвращаем null, если не нашли подходящего родителя
+// }
+
+// Пример использования
+// const tree: CollapsedElement[] = [
+//   {
+//     label: "A",
+//     parent: "",
+//     child: {
+//       label: "B",
+//       parent: "A",
+//       child: {
+//         label: "C",
+//         parent: "B",
+//         child: {
+//           label: "D",
+//           parent: "C",
+//           child: null,
+//         },
+//       },
+//     },
+//   },
+// ];
+
+// const newElement: CollapsedElement = { label: "F", parent: "B", child: null };
+
+// const pathToNewElement = findAndBuildPath(tree, newElement);
+
+// console.log(JSON.stringify(pathToNewElement, null, 2));
+
+// function hasChild(tree: CollapsedElement[], newElement: CollapsedElement): boolean {
+//   const collapsedElements = [...tree];
+//   function traverse(node: CollapsedElement): boolean {
+//     if (node.label === newElement.parent) {
+//       return !!node.child;
+//     }
+//     if (node.child) {
+//       return traverse(node.child);
+//     }
+//     return false;
+//   }
+
+//   for (const rootNode of tree) {
+//     const result = traverse(rootNode);
+//     if (result) {
+//       return result;
+//     }
+//   }
+
+//   return false;
+// }
+
+// hasChild(tree, newElement);
+
+// console.log(hasChild(tree, newElement));
+
+type CollapsedElement = {
+  label: string;
+  parent: string | null;
+  child: CollapsedElement | null;
+};
+
+function addOrUpdateElement(tree: CollapsedElement[], newElement: CollapsedElement): CollapsedElement[] {
+  if (tree.length === 0) {
+    return [newElement];
   }
-]));
+
+  function findAndBuildPath(node: CollapsedElement, path: CollapsedElement[]): CollapsedElement | null {
+    path.push({ ...node, child: null });
+
+    if (node.label === newElement.parent) {
+      return path.reduceRight<CollapsedElement | null>((acc, curr) => {
+        if (acc) {
+          curr.child = acc;
+        }
+        return curr;
+      }, newElement);
+    }
+
+    if (node.child) {
+      const result = findAndBuildPath(node.child, path);
+      if (result) {
+        return result;
+      }
+    }
+
+    path.pop();
+    return null;
+  }
+
+  function hasChild(node: CollapsedElement): boolean {
+    if (node.label === newElement.parent) {
+      return !!node.child;
+    }
+    if (node.child) {
+      return hasChild(node.child);
+    }
+    return false;
+  }
+
+  let lastFoundIndex = -1;
+  let result: CollapsedElement[] = [...tree];
+
+  for (let i = 0; i < tree.length; i++) {
+    const rootNode = tree[i];
+    if (hasChild(rootNode)) {
+      lastFoundIndex = i; // Сохраняем индекс последнего найденного родителя
+    }
+  }
+
+  if (lastFoundIndex !== -1) {
+    const lastParentNode = result[lastFoundIndex];
+    const newBranch = findAndBuildPath(lastParentNode, []);
+    if (newBranch) {
+      result.push(newBranch);
+    }
+  } else {
+    result = result.map((node) => {
+      return updateTree(node);
+    });
+  }
+
+  function updateTree(node: CollapsedElement): CollapsedElement {
+    if (node.label === newElement.parent) {
+      return { ...node, child: newElement };
+    }
+    if (node.child) {
+      return { ...node, child: updateTree(node.child) };
+    }
+    return node;
+  }
+
+  return result;
+}
+
+// Пример использования
+const tree: CollapsedElement[] = [];
+
+const newElement: CollapsedElement = { label: "A", parent: null, child: null };
+let updatedTree = addOrUpdateElement(tree, newElement);
+console.log(JSON.stringify(updatedTree, null, 2));
+console.log('-----------------------------------1');
+
+updatedTree = addOrUpdateElement(updatedTree, { label: "B", parent: "A", child: null });
+console.log(JSON.stringify(updatedTree, null, 2));
+console.log('-----------------------------------2');
+
+updatedTree = addOrUpdateElement(updatedTree, { label: "C", parent: "B", child: null });
+console.log(JSON.stringify(updatedTree, null, 2));
+console.log('-----------------------------------3');
+
+updatedTree = addOrUpdateElement(updatedTree, { label: "D", parent: "B", child: null });
+console.log(JSON.stringify(updatedTree, null, 2));
+console.log('-----------------------------------4');
+
+updatedTree = addOrUpdateElement(updatedTree, { label: "F", parent: "A", child: null });
+console.log(JSON.stringify(updatedTree, null, 2));
+console.log('-----------------------------------4');
+
+updatedTree = addOrUpdateElement(updatedTree, { label: "G", parent: "F", child: null });
+console.log(JSON.stringify(updatedTree, null, 2));
+console.log('-----------------------------------5');
+
+updatedTree = addOrUpdateElement(updatedTree, { label: "h", parent: "C", child: null });
+console.log(JSON.stringify(updatedTree, null, 2));
+console.log('-----------------------------------6');
