@@ -80,7 +80,6 @@ const buildIdentifyCollapsedElementsPrompt = (websiteDescription: string, previo
 1. **Scan the Screenshot**: Analyze the screenshot for any collapsed element that requires interaction (such as clicking) to reveal additional content. These elements are typically related to categories of services or products. Do not consider sidebars, navigation blocks, or footers.
 2. **Focus on Sub-Categories**: If a collapsed element is already expanded but contains sub-categories that are still collapsed, return the whole tree with the first collapsed sub-category you find. This should be done regardless of how deep the nesting goes.
 3. **Return the Tree**: Identify and return the tree of collapsed elements, exactly as it appears on the screenshot including category it's sub-categories with only one children on each level.
-4. **Check Current Collapsed Branch**: If <current_collapsed_branch> is provided, examine the screenshot to see if this element is expanded. If it is expanded and no prices are visible, consider any tables, lists, or rows within it as potential collapsed elements. Return the first collapsed sub-category found within this branch, regardless of depth.
 
 <website_description>
 ${websiteDescription}
@@ -88,39 +87,17 @@ ${websiteDescription}
 
 ${previousCollapsedElements.length > 0 ? `<already_detected_collapsed_elements>\n${previousCollapsedElements.map(element => getCollapsedElementPath(element)).join('\n')}\n</already_detected_collapsed_elements>` : ''}
 
+### EXAMPLE OUTPUT:
+{ 
+  label: 'Анализы и диагностика',
+  children: [],
+  parent: 'Процедурный кабинет | null'
+}
+
+${currentCollapsedBranch ? `Focus on current collapsed branch. If it is expanded and no prices are visible, consider any tables, lists, or rows within it as potential collapsed elements. Return the first collapsed sub-category found within this branch:\n<current_collapsed_branch>${getCollapsedElementPath(currentCollapsedBranch)}\n</current_collapsed_branch>` : ''}
+
 ### Note:
 It is crucial that you do not invent or add any text that is not present on the screenshot. The label of the collapsed element must be an exact match to what is on the page, with no modifications. Do not include counters or numbers in the label unless they are explicitly present in the screenshot.
-
-### EXAMPLE OUTPUT:
-<screenshot_structure>
-- Процедурный кабинет
-</screenshot_structure>
-{ 
-  label: 'Процедурный кабинет',
-  children: []
-}
-
-### EXAMPLE OUTPUT WITH SUB-CATEGORIES:
-<screenshot_structure>
-→ Процедурный кабинет
-  → Анализы и диагностика
-    → Биохимический анализ крови
-</screenshot_structure>
-<current_collapsed_branch>
-Процедурный кабинет -> Анализы и диагностика
-</current_collapsed_branch>
-{ 
-  label: 'Процедурный кабинет',
-  children: [{
-    label: 'Анализы и диагностика',
-    children: [{
-      label: 'Биохимический анализ крови',
-      children: []
-    }]
-  }]
-}
-
-${currentCollapsedBranch ? `<current_collapsed_branch>\n${getCollapsedElementPath(currentCollapsedBranch)}\n</current_collapsed_branch>` : ''}
 `
 }
 

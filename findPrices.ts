@@ -34,6 +34,7 @@ export class PriceFinder {
 
   private CollapsedElementsSchema = z.object({
     label: z.string(),
+    parent: z.string().optional(),
     children: z.lazy(() => z.array(this.CollapsedElementsSchema))
   });
   
