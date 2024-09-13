@@ -1,0 +1,31 @@
+{
+  "name": "aws-lambda-typescript",
+  "version": "1.0.0",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "node --loader ts-node/esm ./index.ts",
+    "dev": "ts-node --transpile-only src/test.ts",
+    "test": "node --loader ts-node/esm ./tests.ts",
+    "find-prices": "ts-node --transpile-only findPrices.ts"
+  },
+  "dependencies": {
+    "aws-sdk": "^2.814.0",
+    "axios": "^1.7.7",
+    "cheerio": "^1.0.0",
+    "csv-writer": "^1.6.0",
+    "dotenv": "^16.4.5",
+    "openai": "^4.57.0",
+    "puppeteer": "^23.3.0",
+    "xmlbuilder2": "^3.1.1",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.76",
+    "@types/node": "^14.14.31",
+    "ts-node": "^10.4.0",
+    "typescript": "^4.5.4"
+  },
+  "license": "MIT"
+}
